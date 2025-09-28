@@ -1,44 +1,58 @@
-import React, { useCallback } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { Upload, FileText, AlertCircle, Eye, Edit, Download } from 'lucide-react';
+import { Upload, FileText, AlertCircle, Eye, Edit, Download, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { pdfApi, handleApiError, pdfUtils } from '@/api/pdf';
 
 interface FileUploadProps {
-  onFileUpload: (file: File) => void;
+  onFileUpload: (file: File, fileId?: string) => void;
 }
 
 export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload }) => {
   const { toast } = useToast();
+  const [isUploading, setIsUploading] = useState(false);
 
   const onDrop = useCallback(
-    (acceptedFiles: File[]) => {
+    async (acceptedFiles: File[]) => {
       const file = acceptedFiles[0];
       if (file) {
-        if (file.type !== 'application/pdf') {
+        // Validate file using utility function
+        const validation = pdfUtils.validateFile(file);
+        if (!validation.isValid) {
           toast({
-            title: "Invalid file type",
-            description: "Please upload a PDF file only.",
+            title: "Invalid file",
+            description: validation.error,
             variant: "destructive",
           });
           return;
         }
 
-        if (file.size > 50 * 1024 * 1024) { // 50MB limit
+        setIsUploading(true);
+        
+        try {
+          // Upload file to backend
+          const uploadResult = await pdfApi.upload(file);
+          
+          // Call parent callback with file and fileId
+          onFileUpload(file, uploadResult.fileId);
+          
           toast({
-            title: "File too large",
-            description: "Please upload a PDF file smaller than 50MB.",
+            title: "File uploaded successfully",
+            description: `${file.name} is ready for editing.`,
+          });
+        } catch (error) {
+          const errorInfo = handleApiError(error);
+          toast({
+            title: "Upload failed",
+            description: errorInfo.message,
             variant: "destructive",
           });
-          return;
+          console.error('Upload error:', error);
+        } finally {
+          setIsUploading(false);
         }
-
-        onFileUpload(file);
-        toast({
-          title: "File uploaded successfully",
-          description: `${file.name} is ready for editing.`,
-        });
       }
     },
     [onFileUpload, toast]
@@ -50,7 +64,8 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload }) => {
       'application/pdf': ['.pdf'],
     },
     multiple: false,
-    maxSize: 50 * 1024 * 1024, // 50MB
+    maxSize: 10 * 1024 * 1024, // 10MB (matching API validation)
+    disabled: isUploading,
   });
 
   return (
@@ -70,7 +85,12 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload }) => {
         <input {...getInputProps()} />
         
         <div className="flex flex-col items-center space-y-4">
-          {isDragReject ? (
+          {isUploading ? (
+            <div className="relative">
+              <FileText className="w-16 h-16 text-muted-foreground" />
+              <Loader2 className="w-8 h-8 text-primary absolute -top-2 -right-2 bg-background rounded-full p-1 shadow-custom-sm animate-spin" />
+            </div>
+          ) : isDragReject ? (
             <AlertCircle className="w-16 h-16 text-destructive" />
           ) : (
             <div className="relative">
@@ -81,7 +101,9 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload }) => {
           
           <div className="space-y-2">
             <h3 className="text-xl font-semibold text-foreground">
-              {isDragActive && !isDragReject
+              {isUploading
+                ? 'Uploading PDF...'
+                : isDragActive && !isDragReject
                 ? 'Drop your PDF here'
                 : isDragReject
                 ? 'Invalid file type'
@@ -90,18 +112,20 @@ export const FileUpload: React.FC<FileUploadProps> = ({ onFileUpload }) => {
             </h3>
             
             <p className="text-muted-foreground">
-              {isDragReject 
+              {isUploading
+                ? 'Please wait while we upload your file'
+                : isDragReject 
                 ? 'Only PDF files are supported'
                 : 'Drag and drop a PDF file here, or click to browse'
               }
             </p>
             
             <p className="text-sm text-muted-foreground">
-              Maximum file size: 50MB
+              Maximum file size: 10MB
             </p>
           </div>
           
-          {!isDragActive && (
+          {!isDragActive && !isUploading && (
             <Button 
               type="button" 
               className="mt-4 bg-gradient-primary hover:shadow-custom-glow transition-all"

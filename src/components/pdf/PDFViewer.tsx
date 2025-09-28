@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Document, Page, pdfjs } from 'react-pdf';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ZoomIn, ZoomOut, RotateCw, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { pdfApi, handleApiError } from '@/api/pdf';
 
 // Set up PDF.js worker
 pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
@@ -13,6 +14,7 @@ pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/b
 interface PDFFile {
   file: File;
   url: string;
+  fileId?: string;
   metadata?: any;
   edits?: any;
 }
@@ -35,7 +37,34 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
   const [scale, setScale] = useState(1.0);
   const [rotation, setRotation] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+  const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const { toast } = useToast();
+
+  // Load preview from backend when fileId is available
+  useEffect(() => {
+    const loadPreview = async () => {
+      if (file.fileId && !previewUrl) {
+        setIsLoadingPreview(true);
+        try {
+          const previewResult = await pdfApi.preview(file.fileId);
+          setPreviewUrl(previewResult.previewUrl);
+        } catch (error) {
+          const errorInfo = handleApiError(error);
+          toast({
+            title: "Preview failed",
+            description: errorInfo.message,
+            variant: "destructive",
+          });
+          console.error('Preview error:', error);
+        } finally {
+          setIsLoadingPreview(false);
+        }
+      }
+    };
+
+    loadPreview();
+  }, [file.fileId, previewUrl, toast]);
 
   const handleDocumentLoadSuccess = (pdf: any) => {
     setLoading(false);
@@ -175,29 +204,36 @@ export const PDFViewer: React.FC<PDFViewerProps> = ({
       <Card className="p-6 bg-pdf-viewer border-0 shadow-custom-md">
         <div className="flex justify-center">
           <div className="shadow-custom-lg rounded-lg overflow-hidden">
-            <Document
-              file={file.url}
-              onLoadSuccess={handleDocumentLoadSuccess}
-              onLoadError={handleDocumentLoadError}
-              loading={
-                <div className="flex items-center justify-center p-12">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-                  <span className="ml-3 text-muted-foreground">Loading PDF...</span>
-                </div>
-              }
-            >
-              <Page
-                pageNumber={currentPage}
-                scale={scale}
-                rotate={rotation}
+            {isLoadingPreview ? (
+              <div className="flex items-center justify-center p-12">
+                <Loader2 className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></Loader2>
+                <span className="ml-3 text-muted-foreground">Loading preview from server...</span>
+              </div>
+            ) : (
+              <Document
+                file={previewUrl || file.url}
+                onLoadSuccess={handleDocumentLoadSuccess}
+                onLoadError={handleDocumentLoadError}
                 loading={
-                  <div className="flex items-center justify-center p-8">
-                    <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                  <div className="flex items-center justify-center p-12">
+                    <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
+                    <span className="ml-3 text-muted-foreground">Loading PDF...</span>
                   </div>
                 }
-                className="pdf-page"
-              />
-            </Document>
+              >
+                <Page
+                  pageNumber={currentPage}
+                  scale={scale}
+                  rotate={rotation}
+                  loading={
+                    <div className="flex items-center justify-center p-8">
+                      <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-primary"></div>
+                    </div>
+                  }
+                  className="pdf-page"
+                />
+              </Document>
+            )}
           </div>
         </div>
       </Card>

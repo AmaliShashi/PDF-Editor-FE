@@ -7,12 +7,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
-import { FileText, Tags, Type, Plus, Trash2 } from 'lucide-react';
+import { FileText, Tags, Type, Plus, Trash2, Loader2, Save } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { pdfApi, handleApiError } from '@/api/pdf';
 
 interface PDFFile {
   file: File;
   url: string;
+  fileId?: string;
   metadata?: {
     title?: string;
     author?: string;
@@ -49,6 +51,7 @@ export const PDFEditPanel: React.FC<PDFEditPanelProps> = ({
 }) => {
   const { toast } = useToast();
   const [metadata, setMetadata] = useState(file.metadata || {});
+  const [isSaving, setIsSaving] = useState(false);
   const [newOverlay, setNewOverlay] = useState({
     page: 1,
     x: 100,
@@ -67,6 +70,70 @@ export const PDFEditPanel: React.FC<PDFEditPanelProps> = ({
     const updatedMetadata = { ...metadata, [field]: value };
     setMetadata(updatedMetadata);
     onMetadataUpdate(updatedMetadata);
+  };
+
+  const saveEditsToBackend = async () => {
+    if (!file.fileId) {
+      toast({
+        title: "No file ID",
+        description: "Cannot save edits without a file ID. Please re-upload the file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      // Convert local edits to API format
+      const edits = file.edits?.textOverlays?.map(overlay => ({
+        pageNumber: overlay.page,
+        x: overlay.x,
+        y: overlay.y,
+        width: overlay.text.length * overlay.fontSize * 0.6, // Approximate width
+        height: overlay.fontSize * 1.2, // Approximate height
+        text: overlay.text,
+        action: 'add_text' as const,
+      })) || [];
+
+      // Add text replacements as edits
+      const replacementEdits = file.edits?.textReplacements?.map(replacement => ({
+        pageNumber: replacement.page,
+        x: 0, // Will be determined by backend
+        y: 0,
+        width: 0,
+        height: 0,
+        text: replacement.replacement,
+        action: 'add_text' as const,
+      })) || [];
+
+      const allEdits = [...edits, ...replacementEdits];
+
+      if (allEdits.length === 0) {
+        toast({
+          title: "No edits to save",
+          description: "Please add some text overlays or replacements before saving.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      const result = await pdfApi.edit(file.fileId, allEdits);
+      
+      toast({
+        title: "Edits saved successfully",
+        description: `Your edits have been saved to the server.`,
+      });
+    } catch (error) {
+      const errorInfo = handleApiError(error);
+      toast({
+        title: "Save failed",
+        description: errorInfo.message,
+        variant: "destructive",
+      });
+      console.error('Save error:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const addTextOverlay = () => {
@@ -164,6 +231,35 @@ export const PDFEditPanel: React.FC<PDFEditPanelProps> = ({
 
   return (
     <div className="space-y-6">
+      {/* Save Button */}
+      <Card className="p-4 bg-gradient-primary border-0">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="text-lg font-semibold text-white">Save Your Edits</h3>
+            <p className="text-white/80 text-sm">
+              Save your changes to the server to apply them to the PDF
+            </p>
+          </div>
+          <Button
+            onClick={saveEditsToBackend}
+            disabled={isSaving || !file.fileId}
+            className="bg-white text-primary hover:bg-white/90 shadow-custom-glow transition-all"
+          >
+            {isSaving ? (
+              <>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                Saving...
+              </>
+            ) : (
+              <>
+                <Save className="w-4 h-4 mr-2" />
+                Save Edits
+              </>
+            )}
+          </Button>
+        </div>
+      </Card>
+
       <Tabs defaultValue="metadata" className="w-full">
         <TabsList className="grid w-full grid-cols-3 bg-muted/50">
           <TabsTrigger 

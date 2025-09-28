@@ -5,13 +5,15 @@ import { Label } from '@/components/ui/label';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Progress } from '@/components/ui/progress';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { FileText, FileImage, Archive, Download, CheckCircle, AlertTriangle } from 'lucide-react';
+import { FileText, FileImage, Archive, Download, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { saveAs } from 'file-saver';
+import { pdfApi, handleApiError, pdfUtils } from '@/api/pdf';
 
 interface PDFFile {
   file: File;
   url: string;
+  fileId?: string;
   metadata?: any;
   edits?: any;
 }
@@ -51,6 +53,15 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({ file }) => {
   ];
 
   const handleExport = async () => {
+    if (!file.fileId) {
+      toast({
+        title: "No file ID",
+        description: "Cannot export without a file ID. Please re-upload the file.",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setIsExporting(true);
     setExportProgress(0);
     setExportComplete(false);
@@ -67,29 +78,37 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({ file }) => {
         });
       }, 200);
 
-      // Simulate API call to backend for processing
-      const formData = new FormData();
-      formData.append('file', file.file);
-      formData.append('format', selectedFormat);
-      formData.append('metadata', JSON.stringify(file.metadata || {}));
-      formData.append('edits', JSON.stringify(file.edits || {}));
-
-      // For demo purposes, we'll simulate the export process
-      await simulateExport(formData, selectedFormat);
+      // Call the actual export API
+      const exportResult = await pdfApi.export(file.fileId, {
+        format: selectedFormat === 'images' ? 'png' : selectedFormat as 'pdf' | 'docx',
+        quality: 'high',
+      });
 
       clearInterval(progressInterval);
       setExportProgress(100);
       setExportComplete(true);
 
+      // Download the exported file
+      const downloadUrl = pdfUtils.getDownloadUrl(file.fileId, exportResult.exportId);
+      
+      // Create a temporary link to download the file
+      const link = document.createElement('a');
+      link.href = downloadUrl;
+      link.download = `${file.file.name.replace('.pdf', '')}_exported.${selectedFormat === 'images' ? 'zip' : selectedFormat}`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+
       toast({
         title: "Export successful",
-        description: `Your ${selectedFormat.toUpperCase()} file has been prepared for download.`,
+        description: `Your ${selectedFormat.toUpperCase()} file has been downloaded.`,
       });
     } catch (error) {
+      const errorInfo = handleApiError(error);
       console.error('Export error:', error);
       toast({
         title: "Export failed",
-        description: "There was an error exporting your file. Please try again.",
+        description: errorInfo.message,
         variant: "destructive",
       });
     } finally {
@@ -97,40 +116,6 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({ file }) => {
     }
   };
 
-  const simulateExport = async (formData: FormData, format: ExportFormat): Promise<void> => {
-    // In a real implementation, this would call your C# backend API
-    // For demo purposes, we'll create a dummy file
-    return new Promise((resolve) => {
-      setTimeout(() => {
-        const fileName = file.file.name.replace('.pdf', '');
-        let blob: Blob;
-        let downloadFileName: string;
-
-        switch (format) {
-          case 'pdf':
-            blob = new Blob(['Dummy PDF content'], { type: 'application/pdf' });
-            downloadFileName = `${fileName}_edited.pdf`;
-            break;
-          case 'docx':
-            blob = new Blob(['Dummy DOCX content'], { 
-              type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' 
-            });
-            downloadFileName = `${fileName}.docx`;
-            break;
-          case 'images':
-            blob = new Blob(['Dummy ZIP content'], { type: 'application/zip' });
-            downloadFileName = `${fileName}_pages.zip`;
-            break;
-          default:
-            throw new Error('Unknown format');
-        }
-
-        // Auto-download the file
-        saveAs(blob, downloadFileName);
-        resolve();
-      }, 2000);
-    });
-  };
 
   const resetExport = () => {
     setExportComplete(false);
@@ -204,7 +189,7 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({ file }) => {
               </>
             ) : isExporting ? (
               <>
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-primary mr-2"></div>
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
                 Exporting...
               </>
             ) : (
@@ -223,11 +208,10 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({ file }) => {
 
       {/* Backend Info Alert */}
       <Alert>
-        <AlertTriangle className="h-4 w-4" />
+        <CheckCircle className="h-4 w-4" />
         <AlertDescription>
-          <strong>Note:</strong> This is a frontend demonstration. In a complete implementation, 
-          the export functionality would connect to a C# ASP.NET Core backend API that handles 
-          PDF processing using libraries like Aspose.PDF or similar tools.
+          <strong>Connected to Backend:</strong> This application is now connected to your C# ASP.NET Core backend API. 
+          All operations (upload, preview, edit, export) are processed on the server.
         </AlertDescription>
       </Alert>
 
