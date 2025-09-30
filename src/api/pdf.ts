@@ -48,6 +48,9 @@ export interface PDFExportResponse {
   downloadUrl: string;
   format: string;
   fileSize: number;
+  file?: any; 
+  fileContent?: any; 
+  data?: any; 
 }
 
 // PDF API functions

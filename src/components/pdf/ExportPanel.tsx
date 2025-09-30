@@ -9,6 +9,7 @@ import { FileText, FileImage, Archive, Download, CheckCircle, AlertTriangle, Loa
 import { useToast } from '@/hooks/use-toast';
 import { saveAs } from 'file-saver';
 import { pdfApi, handleApiError, pdfUtils } from '@/api/pdf';
+import { api } from '@/api/client';
 
 interface PDFFile {
   file: File;
@@ -66,38 +67,46 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({ file }) => {
     setExportProgress(0);
     setExportComplete(false);
 
-    try {
-      // Simulate export progress
-      const progressInterval = setInterval(() => {
-        setExportProgress(prev => {
-          if (prev >= 90) {
-            clearInterval(progressInterval);
-            return 90;
-          }
-          return prev + 10;
-        });
-      }, 200);
+    // Simulate export progress
+    const progressInterval = setInterval(() => {
+      setExportProgress(prev => {
+        if (prev >= 90) {
+          clearInterval(progressInterval);
+          return 90;
+        }
+        return prev + 10;
+      });
+    }, 200);
 
-      // Call the actual export API
-      const exportResult = await pdfApi.export(file.fileId, {
+    try {
+
+      // Call the actual export API - backend returns file directly
+      const response = await api.post(`/export/${file.fileId}`, {
         format: selectedFormat === 'images' ? 'png' : selectedFormat as 'pdf' | 'docx',
         quality: 'high',
+      }, {
+        responseType: 'blob' // Important: tell axios to expect binary data
       });
 
       clearInterval(progressInterval);
       setExportProgress(100);
       setExportComplete(true);
 
-      // Download the exported file
-      const downloadUrl = pdfUtils.getDownloadUrl(file.fileId, exportResult.exportId);
+      // Log the response to debug
+      console.log('Export response:', response);
+
+      // The backend returns the file directly, so we can download it immediately
+      const blob = new Blob([response.data]);
+      const url = window.URL.createObjectURL(blob);
       
-      // Create a temporary link to download the file
       const link = document.createElement('a');
-      link.href = downloadUrl;
+      link.href = url;
       link.download = `${file.file.name.replace('.pdf', '')}_exported.${selectedFormat === 'images' ? 'zip' : selectedFormat}`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
+      
+      window.URL.revokeObjectURL(url);
 
       toast({
         title: "Export successful",
@@ -106,9 +115,14 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({ file }) => {
     } catch (error) {
       const errorInfo = handleApiError(error);
       console.error('Export error:', error);
+      console.error('Error details:', errorInfo);
+      
+      // Clear progress interval if it's still running
+      clearInterval(progressInterval);
+      
       toast({
         title: "Export failed",
-        description: errorInfo.message,
+        description: errorInfo.message || 'An unexpected error occurred during export',
         variant: "destructive",
       });
     } finally {
@@ -205,15 +219,6 @@ export const ExportPanel: React.FC<ExportPanelProps> = ({ file }) => {
           </p>
         </div>
       </Card>
-
-      {/* Backend Info Alert */}
-      <Alert>
-        <CheckCircle className="h-4 w-4" />
-        <AlertDescription>
-          <strong>Connected to Backend:</strong> This application is now connected to your C# ASP.NET Core backend API. 
-          All operations (upload, preview, edit, export) are processed on the server.
-        </AlertDescription>
-      </Alert>
 
       {/* Export Summary */}
       {(file.metadata || file.edits) && (

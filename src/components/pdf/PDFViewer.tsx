@@ -9,7 +9,7 @@ import { useToast } from '@/hooks/use-toast';
 import { pdfApi, handleApiError } from '@/api/pdf';
 
 // Set up PDF.js worker
-pdfjs.GlobalWorkerOptions.workerSrc = `//unpkg.com/pdfjs-dist@${pdfjs.version}/build/pdf.worker.min.js`;
+pdfjs.GlobalWorkerOptions.workerSrc = '/pdf.worker.min.mjs';
 
 interface PDFFile {
   file: File;
