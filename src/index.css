@@ -1,0 +1,108 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 100%;
+    --foreground: 215 25% 27%;
+    --card: 0 0% 100%;
+    --card-foreground: 215 25% 27%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 215 25% 27%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 0 0% 98%;
+    --primary-hover: 217 91% 55%;
+    --secondary: 210 40% 98%;
+    --secondary-foreground: 215 25% 27%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 94%;
+    --accent-foreground: 215 25% 27%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 217 91% 60%;
+    --radius: 0.75rem;
+    --pdf-viewer-bg: 210 14% 97%;
+    --pdf-toolbar-bg: 0 0% 100%;
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 215 25% 27%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 210 40% 94%;
+    --sidebar-accent-foreground: 215 25% 27%;
+    --sidebar-border: 214 32% 91%;
+    --sidebar-ring: 217 91% 60%;
+    
+    /* Custom gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 55%));
+    --gradient-secondary: linear-gradient(135deg, hsl(210 40% 98%), hsl(210 40% 94%));
+    --gradient-accent: linear-gradient(180deg, hsl(210 14% 97%), hsl(210 40% 96%));
+    
+    /* Shadows */
+    --shadow-sm: 0 2px 4px -1px hsl(217 91% 60% / 0.1);
+    --shadow-md: 0 4px 12px -2px hsl(217 91% 60% / 0.12);
+    --shadow-lg: 0 8px 25px -3px hsl(217 91% 60% / 0.15);
+    --shadow-glow: 0 0 20px hsl(217 91% 60% / 0.3);
+    
+    /* Transitions */
+    --transition-all: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-colors: color, background-color, border-color 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .dark {
+    --background: 215 28% 17%;
+    --foreground: 210 40% 98%;
+    --card: 215 28% 17%;
+    --card-foreground: 210 40% 98%;
+    --popover: 215 28% 17%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 217 91% 60%;
+    --primary-foreground: 215 28% 17%;
+    --primary-hover: 217 91% 65%;
+    --secondary: 215 28% 25%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 215 28% 25%;
+    --muted-foreground: 217 10% 64%;
+    --accent: 215 28% 25%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 215 28% 25%;
+    --input: 215 28% 25%;
+    --ring: 217 91% 60%;
+    --pdf-viewer-bg: 215 28% 20%;
+    --pdf-toolbar-bg: 215 28% 17%;
+    --sidebar-background: 215 28% 17%;
+    --sidebar-foreground: 210 40% 98%;
+    --sidebar-primary: 217 91% 60%;
+    --sidebar-primary-foreground: 215 28% 17%;
+    --sidebar-accent: 215 28% 25%;
+    --sidebar-accent-foreground: 210 40% 98%;
+    --sidebar-border: 215 28% 25%;
+    --sidebar-ring: 217 91% 60%;
+    
+    /* Dark mode gradients */
+    --gradient-primary: linear-gradient(135deg, hsl(217 91% 60%), hsl(217 91% 65%));
+    --gradient-secondary: linear-gradient(135deg, hsl(215 28% 25%), hsl(215 28% 17%));
+    --gradient-accent: linear-gradient(180deg, hsl(215 28% 20%), hsl(215 28% 25%));
+    
+    /* Dark mode shadows */
+    --shadow-sm: 0 2px 4px -1px hsl(0 0% 0% / 0.3);
+    --shadow-md: 0 4px 12px -2px hsl(0 0% 0% / 0.4);
+    --shadow-lg: 0 8px 25px -3px hsl(0 0% 0% / 0.5);
+    --shadow-glow: 0 0 20px hsl(217 91% 60% / 0.4);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground;
+  }
+}
